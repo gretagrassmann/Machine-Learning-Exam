@@ -10,6 +10,10 @@ from rdkit.Chem import ChemicalFeatures, MolFromSmiles, AllChem
 from utils import *
 
 def load_dataset_scaffold(path, dataset='hiv', seed=628, tasks=None):
+    """
+    This function processes all the smiles, anf put the processed molecular graph in the folder data/processed. It is
+    implemented only the first time run.py is run: if the folder data/processed already exists it is not necessary.
+    """
     save_path = path + 'processed/train_valid_test_{}_seed_{}.ckpt'.format(dataset, seed)
     if os.path.isfile(save_path):
         trn, val, test = torch.load(save_path)
@@ -19,7 +23,6 @@ def load_dataset_scaffold(path, dataset='hiv', seed=628, tasks=None):
     df = pd.read_csv(os.path.join(path, 'raw/{}.csv'.format(dataset)))
     smilesList = df.smiles.values
     print("number of all smiles: ", len(smilesList))
-    print("ci")
     remained_smiles = []
     canonical_smiles_list = []
     for smiles in smilesList:
@@ -37,6 +40,7 @@ def load_dataset_scaffold(path, dataset='hiv', seed=628, tasks=None):
                      pyg_dataset[torch.LongTensor(val_id)], \
                      pyg_dataset[torch.LongTensor(test_id)]
     trn.weights = weights
+    """There are two weights: (+)+(-) over (-) and (+)+(-) over (+)"""
 
     torch.save([trn, val, test], save_path)
     return load_dataset_scaffold(path, dataset, seed, tasks)

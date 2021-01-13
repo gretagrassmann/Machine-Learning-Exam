@@ -161,7 +161,7 @@ def split(scaffolds_dict, smiles_tasks_df, tasks, weights, sample_size, random_s
 
 # copy from xiong et al. attentivefp
 def scaffold_randomized_spliting(smiles_tasks_df, tasks=['HIV_active'], random_seed=8):
-    """ For each weigh a scaffold is generated and saved (its index is separately saved too). Next they are split for
+    """ For each molecule a scaffold is generated and saved (its index is separately saved too). Next they are split for
     training, testing and validation"""
     weights = []
     for i, task in enumerate(tasks):
