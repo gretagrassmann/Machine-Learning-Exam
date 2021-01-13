@@ -11,5 +11,5 @@ The study of this new **TrimNet** method and an in-depth description of the modi
 $ PyTorch >= 1.4.0
 $ torch-gemetric >= 1.3.2
 $ rdkit >= '2019.03.4'
-$ The path to bace.csv has to be modified
+$ Python 3.7 (installed with Anaconda) is recommended
 ```
