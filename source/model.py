@@ -3,7 +3,7 @@ import torch.nn as nn
 from torch.nn import Linear, GRU, Parameter
 import torch.nn.functional as F
 from torch.nn.functional import leaky_relu
-from torch_geometric.nn import Set2Set, NNConv
+from torch_geometric.nn import Set2Set
 from torch_geometric.nn.conv import MessagePassing
 from torch_geometric.utils import softmax
 from torch.nn.init import kaiming_uniform_, zeros_
@@ -110,6 +110,12 @@ class Block(torch.nn.Module):
             # conv <- MultiHeadTripletAttention [#, node_channels]
             m = F.celu(self.conv.forward(x, edge_index, edge_attr)) # [#, node_channels]
             x, h = self.gru(m.unsqueeze(0), h) # both [1,#,node_channels]
+            """
+            m (seq_len, batch, input_size): tensor containing the features of the input sequence. 
+            h (num_layers * num_directions, batch, hidden_size): tensor containing the initial hidden state for 
+            each element in the batch. Defaults to zero if not provided. 
+            If the RNN is bidirectional, num_directions should be 2, else it should be 1.
+            """
             x = self.ln(x.squeeze(0)) # [#, node_channels]
         return x
 
@@ -125,16 +131,17 @@ class TrimNet(torch.nn.Module):
             for i in range(depth)
         ]) # ModuleList contains depth(=3) Block
         self.set2set = Set2Set(hidden_dim, processing_steps=3)
+
         """
         def __init__(self, in_channels, processing_steps, num_layers=1):
             super(Set2Set, self).__init__()
 
-            self.in_channels = in_channels
+            self.in_channels = in_channels   #=hidden_dim
             self.out_channels = 2 * in_channels
             self.processing_steps = processing_steps
             self.num_layers = num_layers
     
-            self.lstm = torch.nn.LSTM(self.out_channels, self.in_channels,
+            self.lstm = torch.nn.LSTM(self.out_channels, self.in_channels,  #in_channels=hiddend_dim of Set2set
                                       num_layers)
     
             self.reset_parameters()
@@ -144,7 +151,7 @@ class TrimNet(torch.nn.Module):
 
 
        def forward(self, x, batch):
-            batch_size = batch.max().item() + 1
+            batch_size = batch.max().item() + 1     #=128
     
             h = (x.new_zeros((self.num_layers, batch_size, self.in_channels)),  #Returns a Tensor filled with 0.
                  x.new_zeros((self.num_layers, batch_size, self.in_channels)))
@@ -178,10 +185,14 @@ class TrimNet(torch.nn.Module):
         """
         data.x is the content of each considered batch [#molecules in the batch* #nodes in each molecule, node features]
         """
-        x = F.celu(self.lin0(data.x)) #with lin0: [#,#node features] -> [#, node channels]
+        x = F.celu(self.lin0(data.x)) #with lin0: [#,#node features] -> [#, hidden_dim]
+
+
         for conv in self.convs:
-            # conv <- Block [#, node_channels]
+            # conv <- Block [#, hidden_dim]
             x = x + F.dropout(conv(x, data.edge_index, data.edge_attr), p=self.dropout, training=self.training)
-        x = self.set2set(x, data.batch) # [batch_size, 2*node_channels]
+        x = self.set2set(x, data.batch) # [batch_size, 2*hidden_dim]
+        """ data.batch marks the atoms that belongs to each one of the 128 molecules of a batch"""
         x = self.out(F.dropout(x, p=self.dropout, training=self.training)) #[batch_size, 2]
+
         return x

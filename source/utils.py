@@ -3,13 +3,8 @@ import os
 import torch
 from torch import nn
 import numpy as np
-import pandas as pd
-from torch_geometric.utils import remove_self_loops
-from rdkit import Chem
-from rdkit.Chem.Scaffolds import MurckoScaffold
 
 
-# binary class
 class FocalLoss(nn.Module):
     # nn.Module: base class for all neural network modules.
 

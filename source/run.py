@@ -1,6 +1,5 @@
 import argparse
 import os
-import torch
 import time
 from utils import seed_set, Option
 from model import TrimNet as Model
@@ -30,7 +29,7 @@ def train():
     parser.add_argument('--lr_scheduler_patience', default=10, type=int)
     parser.add_argument('--early_stop_patience', default=-1, type=int)
     parser.add_argument('--lr_decay', default=0.98, type=float)
-    parser.add_argument('--focalloss', default=False, action="store_true")
+    parser.add_argument('--focalloss', default=True, action="store_true")
 
     parser.add_argument('--eval', default=False, action="store_true")
     parser.add_argument("--exps_dir", default='../test', type=str, help="out dir")

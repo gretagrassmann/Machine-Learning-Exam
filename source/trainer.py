@@ -4,11 +4,10 @@ from tqdm import tqdm
 import numpy as np
 import pandas as pd
 import torch
-from torch_geometric.data import DataLoader, DataListLoader, Batch
+from torch_geometric.data import DataLoader, DataListLoader
 from torch_geometric.nn import DataParallel
 from sklearn import metrics
 import torch.nn.functional as F
-import torch.nn as nn
 from sklearn.metrics import precision_recall_curve
 from utils import FocalLoss
 
@@ -36,7 +35,8 @@ class Trainer():
         # Setting the Adam optimizer with hyper-param
         if option['focalloss']: #!!!
             self.log('Using FocalLoss')
-            self.criterion = [FocalLoss(alpha=1 / w[0]) for w in weight]  # alpha 0.965
+            print("Focalloss")
+            self.criterion = [FocalLoss(alpha=1 / w[0]) for w in weight]  # alpha 0.54
         else:
             self.criterion = [torch.nn.CrossEntropyLoss(torch.Tensor(w).to(self.device), reduction='mean') for w in
                               weight]
@@ -95,11 +95,10 @@ class Trainer():
             data = data.to(self.device)
             output = self.model(data)
             loss = 0
-
             for i in range(self.tasks_num):
-                y_pred = output[:, i * 2:(i + 1) * 2]
-                y_label = data.y[:, i].squeeze()
-                # y_label has 128 values, one for each molecule
+                y_pred = output[:, i * 2:(i + 1) * 2] # Since there is only one task, y_pred=output
+                y_label = data.y[:, i].squeeze()    # y_label has 128 values, one for each molecule
+
                 #!!! PROVA A TOGLIERE QUESTA PARTE validId
                 validId = np.where((y_label.cpu().numpy() == 0) | (y_label.cpu().numpy() == 1))[0]
                 if len(validId) == 0:
