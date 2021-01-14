@@ -1,7 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 
-HD = pd.read_csv('C:/Users/Cobal/Desktop/EXAM/trimnet/trimnet_drug/test/01-12-12-23/record.csv')
+HD = pd.read_csv('C:\\Users\\Cobal\\Desktop\\Machine-Learning-Exam\\test\\01-14-09-52\\record.csv')
 
 x = list(HD['epoch'])
 y1 = list(HD['trn_loss'])
