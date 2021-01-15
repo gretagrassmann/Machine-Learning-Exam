@@ -22,14 +22,14 @@ def train():
     parser.add_argument('--depth', default=3, type=int)
     parser.add_argument("--dropout", type=float, default=0.2)
 
-    parser.add_argument("--batch_size", type=int, default=128, help="number of batch_size")
+    parser.add_argument("--batch_size", type=int, default=128, help="number of batch_size") #DEFAULT 128
     parser.add_argument("--epochs", type=int, default=200, help="number of epochs") #DEFAULT 200
     parser.add_argument("--lr", type=float, default=0.001, help="learning rate of adam")
     parser.add_argument("--weight_decay", type=float, default=1e-5)
     parser.add_argument('--lr_scheduler_patience', default=10, type=int)
     parser.add_argument('--early_stop_patience', default=-1, type=int)
     parser.add_argument('--lr_decay', default=0.98, type=float)
-    parser.add_argument('--focalloss', default=True, action="store_true")
+    parser.add_argument('--focalloss', default=False, action="store_true")
 
     parser.add_argument('--eval', default=False, action="store_true")
     parser.add_argument("--exps_dir", default='../test', type=str, help="out dir")

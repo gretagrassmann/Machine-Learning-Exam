@@ -15,13 +15,12 @@ class FocalLoss(nn.Module):
         self.alpha = alpha
 
     def forward(self, input, target):
-        # input:size is M*2. M　is the batch　number
-        # target:size is M.
+        # input [batch_size,2]. target [batch_size]
         target = target.float()
         pt = torch.softmax(input, dim=1)
         # Applies the Softmax to a n-dimensional input Tensor rescaling the elements so that they lie in the range
-        # [0,1] and sum to 1 (dim=1 -> it normalizes values along axis 1, the columns(?))
-        p = pt[:, 1]
+        # [0,1] and sum to 1 (in each raw)
+        p = pt[:, 1]  # [batch_size]
         loss = -self.alpha * (1 - p) ** self.gamma * (target * torch.log(p)) - \
                (1 - self.alpha) * p ** self.gamma * ((1 - target) * torch.log(1 - p))
         return loss.mean()

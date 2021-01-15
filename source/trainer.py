@@ -18,6 +18,11 @@ class Trainer():
         # option contains the most important variable
         self.option = option
         self.device = torch.device("cuda:{}".format(option['gpu'][0]) if torch.cuda.is_available() else "cpu")
+        """
+        In my case cpu.The CPU is a powerful execution engine, that focuses its smaller number of cores on individual 
+        tasks and on getting things done quickly. This makes it uniquely well equipped for jobs ranging from serial 
+        computing to running databases. GPUs began as specialized ASICs developed to accelerate specific 3D rendering tasks.
+        """
         self.model = DataParallel(model).to(self.device) if option['parallel'] else model.to(self.device)
 
         # Setting the train valid and test data loader
@@ -33,7 +38,7 @@ class Trainer():
             if test_dataset: self.test_dataloader = DataLoader(test_dataset, batch_size=self.option['batch_size'])
         self.save_path = self.option['exp_path']
         # Setting the Adam optimizer with hyper-param
-        if option['focalloss']: #!!!
+        if option['focalloss']:
             self.log('Using FocalLoss')
             print("Focalloss")
             self.criterion = [FocalLoss(alpha=1 / w[0]) for w in weight]  # alpha 0.54
@@ -74,9 +79,7 @@ class Trainer():
     def train_iterations(self):
         self.model.train()
         losses = []
-        y_pred_list = {}
-        y_label_list = {}
-        for data in tqdm(self.train_dataloader):
+        for data in tqdm(self.train_dataloader): #10 repetitions: 1216 molecules divided in batch with size 128
             """
             Each data corresponds to (for example):
             Batch(batch=[4474], edge_attr=[9640, 10], edge_index=[2, 9640], x=[4474, 39], y=[128, 1])
@@ -95,42 +98,38 @@ class Trainer():
             data = data.to(self.device)
             output = self.model(data)
             loss = 0
-            for i in range(self.tasks_num):
-                y_pred = output[:, i * 2:(i + 1) * 2] # Since there is only one task, y_pred=output
-                y_label = data.y[:, i].squeeze()    # y_label has 128 values, one for each molecule
 
-                #!!! PROVA A TOGLIERE QUESTA PARTE validId
-                validId = np.where((y_label.cpu().numpy() == 0) | (y_label.cpu().numpy() == 1))[0]
-                if len(validId) == 0:
-                    continue
-                if y_label.dim() == 0:
-                    y_label = y_label.unsqueeze(0)
+            i = 0 # there is only one task, classification
+            y_pred = output[:, i * 2:(i + 1) * 2] # Since there is only one task, y_pred=output [batch_size,2]
+            y_label = data.y[:, i].squeeze()    # y_label has 128 values, one for each molecule [batch_size]
 
-                y_pred = y_pred[torch.tensor(validId).to(self.device)]
-                y_label = y_label[torch.tensor(validId).to(self.device)]
-                loss += self.criterion[i](y_pred, y_label)
-                #!!! PROVA A TOGLIERE ANCHE QUESTO
-                y_pred = F.softmax(y_pred.detach().cpu(), dim=-1)[:, 1].view(-1).numpy()
-                try:
-                    y_label_list[i].extend(y_label.cpu().numpy())
-                    y_pred_list[i].extend(y_pred)
-                except:
-                    y_label_list[i] = []
-                    y_pred_list[i] = []
-                    y_label_list[i].extend(y_label.cpu().numpy())
-                    y_pred_list[i].extend(y_pred)
+            validId = np.where((y_label.cpu().numpy() == 0) | (y_label.cpu().numpy() == 1))[0] #[128] values 0->127
+
+            y_pred = y_pred[torch.tensor(validId).to(self.device)]
+            y_label = y_label[torch.tensor(validId).to(self.device)]
+            loss += self.criterion[i](y_pred, y_label)
+            y_pred = F.softmax(y_pred.detach().cpu(), dim=-1)[:, 1].view(-1).numpy() # [batch_size,2]->(batch_size,)
+            """
+            Softmax is a mathematical function that converts a vector of numbers into a vector of probabilities, 
+            where the probabilities of each value are proportional to the relative scale of each value in the vector.
+            The most common use of the softmax function in applied machine learning is in its use as an activation 
+            function in a neural network model. Specifically, the network is configured to output C values, one for 
+            each class in the classification task, and the softmax function is used to normalize the outputs, 
+            converting them from weighted sum values into probabilities that sum to one. Each value in the output 
+            of the softmax function is interpreted as the probability of membership for each class.
+            """
 
             loss.backward()
 
             self.optimizer.step()
             losses.append(loss.item())
 
-        trn_roc = [metrics.roc_auc_score(y_label_list[i], y_pred_list[i]) for i in range(self.tasks_num)]
-        trn_prc = [metrics.auc(precision_recall_curve(y_label_list[i], y_pred_list[i])[1],
-                               precision_recall_curve(y_label_list[i], y_pred_list[i])[0]) for i in
-                   range(self.tasks_num)]
+        trn_roc = [metrics.roc_auc_score(y_label, y_pred)] #one value for each epoch
+        trn_prc = [metrics.auc(precision_recall_curve(y_label, y_pred)[1],
+                               precision_recall_curve(y_label, y_pred)[0])]    #one value for each epoch
+        # for each epoch, one value of losses for each batch (for 1216 molecules and batch_size=128 there are
+        # 10 batch -> 10 losses)
         trn_loss = np.array(losses).mean()
-
         return trn_loss, np.array(trn_roc).mean(), np.array(trn_prc).mean()
 
     def valid_iterations(self, mode='valid'):
@@ -143,8 +142,6 @@ class Trainer():
         if mode == 'test' or mode == 'eval': dataloader = self.test_dataloader
         if mode == 'valid': dataloader = self.valid_dataloader
         losses = []
-        y_pred_list = {}
-        y_label_list = {}
         with torch.no_grad():
             """
             Disables gradient calculation. This is useful for inference, when you are sure that you will not call 
@@ -153,39 +150,25 @@ class Trainer():
             for data in tqdm(dataloader):
                 data = data.to(self.device)
                 output = self.model(data)
-                loss = 0
-                for i in range(self.tasks_num):
-                    y_pred = output[:, i * 2:(i + 1) * 2]
-                    y_label = data.y[:, i].squeeze()
-                    #!!! ANCHE QUA PROVA A TOGLIERE
-                    validId = np.where((y_label.cpu().numpy() == 0) | (y_label.cpu().numpy() == 1))[0]
-                    if len(validId) == 0:
-                        continue
-                    if y_label.dim() == 0:
-                        y_label = y_label.unsqueeze(0)
 
+                i = 0 # only one task: classification
+                y_pred = output[:, i * 2:(i + 1) * 2]
+                y_label = data.y[:, i].squeeze()
 
-                    y_pred = y_pred[torch.tensor(validId).to(self.device)]
-                    y_label = y_label[torch.tensor(validId).to(self.device)]
+                validId = np.where((y_label.cpu().numpy() == 0) | (y_label.cpu().numpy() == 1))[0]
 
-                    loss = self.criterion[i](y_pred, y_label)
+                y_pred = y_pred[torch.tensor(validId).to(self.device)]
+                y_label = y_label[torch.tensor(validId).to(self.device)]
 
-                    y_pred = F.softmax(y_pred.detach().cpu(), dim=-1)[:, 1].view(-1).numpy()
-                    # !!! DI NUOVO PROVA A TOGLIERE
-                    try:
-                        y_label_list[i].extend(y_label.cpu().numpy())
-                        y_pred_list[i].extend(y_pred)
-                    except:
-                        y_label_list[i] = []
-                        y_pred_list[i] = []
-                        y_label_list[i].extend(y_label.cpu().numpy())
-                        y_pred_list[i].extend(y_pred)
-                    losses.append(loss.item())
+                loss = self.criterion[i](y_pred, y_label)
 
-        val_roc = [metrics.roc_auc_score(y_label_list[i], y_pred_list[i]) for i in range(self.tasks_num)]
-        val_prc = [metrics.auc(precision_recall_curve(y_label_list[i], y_pred_list[i])[1],
-                               precision_recall_curve(y_label_list[i], y_pred_list[i])[0]) for i in
-                   range(self.tasks_num)]
+                y_pred = F.softmax(y_pred.detach().cpu(), dim=-1)[:, 1].view(-1).numpy()
+
+                losses.append(loss.item())
+
+        val_roc = [metrics.roc_auc_score(y_label, y_pred)]
+        val_prc = [metrics.auc(precision_recall_curve(y_label, y_pred)[1],
+                               precision_recall_curve(y_label, y_pred)[0])]
         val_loss = np.array(losses).mean()
         if mode == 'eval':
             self.log('SEED {} DATASET {}  The best test_loss:{:.3f} test_roc:{:.3f} test_prc:{:.3f}.'
@@ -240,10 +223,6 @@ class Trainer():
                 early_stop_cnt = 0
             else:
                 early_stop_cnt += 1
-            # !!! REMOVE THIS PIECE, SINCE 'early stop patience'=-1, the if is always false.
-            if self.option['early_stop_patience'] > 0 and early_stop_cnt > self.option['early_stop_patience']:
-                self.log('Early stop hitted!')
-                break
 
         self.save_model_and_records(epoch, final_save=True)
 
