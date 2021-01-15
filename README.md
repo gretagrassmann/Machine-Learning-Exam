@@ -12,5 +12,5 @@ $ PyTorch >= 1.4.0
 $ torch-gemetric >= 1.3.2
 $ rdkit >= '2019.03.4'
 $ Python 3.7 (installed with Anaconda) is recommended
-$ In plot.py the PATH to record.csv has to be changed
+$ In plot.py and comparison_plot.py the PATH to the csv files have to be changed
 ```
