@@ -1,5 +1,5 @@
 # TrimNet: a new deep learning method for learning molecular representation from triplet messages
-## Machine Learning with Prof. Giampieri, University of Bologna 
+## Machine Learning with Prof. Asperti, University of Bologna 
 
 ***The original code is not my work: it can be found [here](https://github.com/yvquanli/TrimNet) and is based on the work described in [this article](https://academic.oup.com/bib/advance-article-abstract/doi/10.1093/bib/bbaa266/5955940).***
 
