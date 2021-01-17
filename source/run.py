@@ -18,8 +18,8 @@ def train():
     parser.add_argument("--gpu", type=int, nargs='+', default=0, help="CUDA device ids")
 
     parser.add_argument("--hid", type=int, default=32, help="hidden size of transformer model")
-    parser.add_argument('--heads', default=4, type=int)
-    parser.add_argument('--depth', default=3, type=int)
+    parser.add_argument('--heads', default=4, type=int) # !!! DEFAULT K=4
+    parser.add_argument('--depth', default=3, type=int) #!!! DEFAULT T=3
     parser.add_argument("--dropout", type=float, default=0.2)
 
     parser.add_argument("--batch_size", type=int, default=128, help="number of batch_size") #DEFAULT 128

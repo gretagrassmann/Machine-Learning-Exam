@@ -67,7 +67,6 @@ class MultiHeadTripletAttention(MessagePassing):
         x_i = x_i.view(-1, self.heads, self.node_channels)   #[#,heads,node_channels]
         e_ij = edge_attr.view(-1, self.heads, self.node_channels)  #[#,heads,node_channels]
 
-
         triplet = torch.cat([x_i, e_ij, x_j], dim=-1)  # time consuming 13s [#,heads,3*node_channels]
         """torch.cat() concatenates the given sequence in the given dimension. All tensor must have the same shape, 
         except in the concatenating dimension."""
@@ -76,7 +75,6 @@ class MultiHeadTripletAttention(MessagePassing):
         alpha = leaky_relu(alpha, self.negative_slope)  # [#, heads]
         alpha = softmax(alpha, edge_index_i, num_nodes=size_i) # [#, heads]
         alpha = alpha.view(-1, self.heads, 1)  # [#, heads]
-
         return alpha * e_ij * x_j
 
     def update(self, aggr_out):
@@ -183,11 +181,9 @@ class TrimNet(torch.nn.Module):
 
     def forward(self, data):
         """
-        data.x is the content of each considered batch [#molecules in the batch* #nodes in each molecule, node features]
+        data.x is the content of each considered batch [#atmos in the batch, node features]
         """
-        x = F.celu(self.lin0(data.x)) #with lin0: [#,#node features] -> [#, hidden_dim]
-
-
+        x = F.celu(self.lin0(data.x)) # data.x [#,#node features] -lin0-> [#, hidden_dim]
         for conv in self.convs:
             # conv <- Block [#, hidden_dim]
             x = x + F.dropout(conv(x, data.edge_index, data.edge_attr), p=self.dropout, training=self.training)
